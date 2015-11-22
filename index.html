@@ -8,123 +8,123 @@
 </head>
 <body>
 
-<canvas id="world" height="400" width="400"></canvas>
-<div id="info"></div>
 
 <script>
 
-var world   = document.getElementById("world").getContext("2d");
-var info    = document.getElementById("info");
+!function () {
+    "use strict";
 
-var dots    = [];
-var cnt     = 0;
+    const size    = 1;
+    const height  = Math.floor(700  / size);
+    const width   = Math.floor(1400 / size);
+    const cDead   = "#eeeeee";
+    const cAlive  = "#666666";
 
-var height  = 200;
-var width   = 200;
+    const bh = height - 1;
+    const bw = width  - 1;
 
-var b       = 0;
-var bh      = height - 1;
-var bw      = width  - 1;
+    const dots = new Array(width);
+    let cnt  = 0;
 
+    const canvas = document.createElement("canvas");
 
-function dot(world, x, y, state) {
-    var _size  = 2;
-    var _state = state === undefined ? (Math.random() * 10 > 8 ? 1 : 0) : state;
+    document.body.innerHTML =
+        '<div id="info">-</div>' +
+        '<canvas id="world" width="' + width * size + '" height="' + height * size + '" style="border: 1px solid #999"></canvas>'
+    ;
 
-    world.fillStyle = _state ? "#66ff66" : "#ff6666";
-    world.fillRect(x * _size, y * _size, _size, _size);
+    const info  = document.getElementById("info");
+    const world = document.getElementById("world").getContext("2d");
 
-    return _state;
-}
+    // draw dot
+    function draw(world, x, y, cAlive, cDead, size, state) {
+        world.fillStyle = state ? cAlive : cDead;
+        world.fillRect(x * size, y * size, size, size);
 
-
-for (var x = 0; x < width; ++x) {
-    var row = [];
-
-   for (var y = 0; y < height; ++y) {
-        row.push(dot(world, x, y));
+        return state;
     }
 
-    dots.push(row);
-}
+    // init world with random dots
+    for (let x = 0; x < width; ++x) {
+        const row = new Uint8Array(height);
 
-
-var interval = setInterval(function () {
-    var next = [];
-
-    for (var x = 0; x < width; ++x) {
-        var row = [];
-
-        for (var y = 0; y < height; ++y) {
-            /**
-             * lt mt rt
-             * lm mm rm
-             * lb mb rb
-             */
-
-//*
-            var sum =
-                // top
-                ((x === 0  || y === 0)  ? b : dots[x - 1]  [y - 1])    +
-                ((x === 0)              ? b : dots[x - 1]  [y])        +
-                ((x === 0  || y === bh) ? b : dots[x - 1]  [y + 1])    +
-                // left / right
-                ((y === 0)              ? b : dots[x]      [y - 1])    +
-                ((y === bh)             ? b : dots[x]      [y + 1])    +
-                // bottom
-                ((x === bw || y === 0)  ? b : dots[x + 1]  [y - 1])    +
-                ((x === bw)             ? b : dots[x + 1]  [y])        +
-                ((x === bw || y === bh) ? b : dots[x + 1]  [y + 1])
-            ;
-/*/
-
-            var lt = dots[x == 0 ? bw : x - 1]  [y == 0 ? bh : y - 1];
-            var mt = dots[x == 0 ? bw : x - 1]  [y];
-            var rt = dots[x == 0 ? bw : x - 1]  [y == bh ? 0 : y + 1];
-
-            var lm = dots[x]                    [y == 0 ? bh : y - 1];
-            var rm = dots[x]                    [y == bh ? 0 : y + 1];
-
-            var lb = dots[x == bw ? 0 : x + 1]  [y == 0 ? bh : y - 1];
-            var mb = dots[x == bw ? 0 : x + 1]  [y];
-            var rb = dots[x == bw ? 0 : x + 1]  [y == bh ? 0 : y + 1];
-
-            var sum =
-                lt + mt + rt +
-                lm + rm +
-                lb + mb + rb
-            ;
-//*/
-            var state = dots[x][y];
-
-            if (state < 1) {
-                if (sum == 3) {
-                    state = 1;
-                }
-            } else {
-                state = (sum < 2 || sum > 3) ? 0 : 1;
-            }
-
-            if (dots[x][y] !== state) {
-                dot(world, x, y, state);
-            }
-
-            row.push(state);
+        for (let y = 0; y < height; ++y) {
+            row[y] = draw(world, x, y, cAlive, cDead, size, Math.random() * 10 > 9.4 ? 1 : 0);
         }
 
-        next.push(row);
+        dots[x] = row;
     }
 
-    dots = [];
+    let fps  = "";
+    let step = cnt;
 
-    // copy array
-    for (var i = 0; i < next.length; ++i) {
-        dots[i] = next[i].slice();
-    }
+    // calc fps
+    setInterval(function () {
+        const diff =  cnt - step;
 
-    info.innerHTML = ++cnt;
-}, 0);
+        step = cnt;
+        fps  = diff;
 
+    }, 1000);
+
+
+    // main loop
+    setInterval(function () {
+        const next = new Array(width);
+        var population = 0;
+        let x;
+        let y;
+
+        for (x = 0; x < width; ++x) {
+            var row = new Uint8Array(height);
+
+            for (y = 0; y < height; ++y) {
+                const lt = dots[x == 0 ? bw : x - 1]  [y == 0 ? bh : y - 1];
+                const mt = dots[x == 0 ? bw : x - 1]  [y];
+                const rt = dots[x == 0 ? bw : x - 1]  [y == bh ? 0 : y + 1];
+
+                const lm = dots[x]                    [y == 0 ? bh : y - 1];
+                const rm = dots[x]                    [y == bh ? 0 : y + 1];
+
+                const lb = dots[x == bw ? 0 : x + 1]  [y == 0 ? bh : y - 1];
+                const mb = dots[x == bw ? 0 : x + 1]  [y];
+                const rb = dots[x == bw ? 0 : x + 1]  [y == bh ? 0 : y + 1];
+
+                // calc surroundings
+                const sum =
+                    lt + mt + rt +
+                    lm + rm +
+                    lb + mb + rb
+                ;
+
+                const oldState = dots[x][y];
+
+                const state  = oldState < 1
+                    ? sum == 3 ? 1 : oldState
+                    : sum < 2 || sum > 3 ? 0 : 1
+                ;
+
+                // only draw if state has changed
+                if (oldState != state) {
+                    draw(world, x, y, cAlive, cDead, size, state);
+                }
+
+                population += state;
+
+                row[y] = state;
+            }
+
+            next[x] = row;
+        }
+
+        // copy array
+        for (x = 0; x < width; ++x) {
+            dots[x] = next[x].subarray();
+        };
+
+        info.innerHTML = "dots: " + width * height + " - generation: " + ++cnt + " - population: " + population + " - fps: " + fps;
+    });
+}();
 </script>
 </body>
 
