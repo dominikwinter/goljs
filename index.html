@@ -14,7 +14,83 @@
 !function () {
     "use strict";
 
-    const size    = 1;
+    var rules = {
+        // Conways Original-Game of Life
+        "23/3": {
+            size: 2,
+            random: 9,
+            getState: function (sum, oldState) {
+                let state = oldState;
+
+                if (oldState === 0 && sum === 3) {
+                    state = 1;
+                } else if (oldState === 1) {
+                    if (sum === 2 || sum === 3) {
+                        state = 1;
+                    } else {
+                        state = 0;
+                    }
+                }
+
+                return state;
+            }
+        },
+        // eine Welt, in der ein sich ausbreitendes, labyrinthartiges Muster entsteht
+        "12345/3": {
+            size: 1,
+            random: 9.9,
+            getState: function (sum, oldState) {
+                let state = oldState;
+
+                if (oldState === 0 && sum === 3) {
+                    state = 1;
+                } else if (oldState === 1) {
+                    state = "12345".indexOf(sum) !== -1 ? 1 : 0;
+                }
+
+                return state;
+            }
+        },
+        // ein Kopiersystem, wobei sich aus einfachen kleinen Strukturen komplexe Muster entwickeln können
+        "1357/1357": {
+            size: 2,
+            random: 9.9999,
+            getState: function (sum, oldState) {
+                let state = oldState;
+
+                if (oldState === 0 && sum % 2 === 1) {
+                    state = 1;
+                } else if (oldState === 1) {
+                    if (sum % 2 === 1) {
+                        state = 1;
+                    } else {
+                        state = 0;
+                    }
+                }
+
+                return state;
+            }
+        },
+
+        "01234678/0123478": {
+            size: 2,
+            random: 2,
+            getState: function (sum, oldState) {
+                let state = oldState;
+
+                if (oldState === 0 && "0123478".indexOf(sum) !== -1) {
+                    state = 1;
+                } else if (oldState === 1) {
+                    state = "01234678".indexOf(sum) !== -1 ? 1 : 0;
+                }
+
+                return state;
+            }
+        }
+    };
+
+    const rule    = rules["12345/3"];
+    const size    = rule.size;
     const height  = Math.floor(700  / size);
     const width   = Math.floor(1400 / size);
     const cDead   = "#eeeeee";
@@ -24,6 +100,7 @@
     const bw = width  - 1;
 
     const dots = new Array(width);
+
     let cnt  = 0;
 
     const canvas = document.createElement("canvas");
@@ -49,14 +126,13 @@
         const row = new Uint8Array(height);
 
         for (let y = 0; y < height; ++y) {
-            row[y] = draw(world, x, y, cAlive, cDead, size, Math.random() * 10 > 9.4 ? 1 : 0);
+            row[y] = draw(world, x, y, cAlive, cDead, size, Math.random() * 10 > rule.random ? 1 : 0);
         }
 
         dots[x] = row;
     }
 
-    let fps  = "";
-    let step = cnt;
+    let fps  = "", step = cnt;
 
     // calc fps
     setInterval(function () {
@@ -72,11 +148,10 @@
     setInterval(function () {
         const next = new Array(width);
         var population = 0;
-        let x;
-        let y;
+        let x, y;
 
         for (x = 0; x < width; ++x) {
-            var row = new Uint8Array(height);
+            const row = new Uint8Array(height);
 
             for (y = 0; y < height; ++y) {
                 const lt = dots[x == 0 ? bw : x - 1]  [y == 0 ? bh : y - 1];
@@ -98,11 +173,7 @@
                 ;
 
                 const oldState = dots[x][y];
-
-                const state  = oldState < 1
-                    ? sum == 3 ? 1 : oldState
-                    : sum < 2 || sum > 3 ? 0 : 1
-                ;
+                const state    = rule.getState(sum, oldState);
 
                 // only draw if state has changed
                 if (oldState != state) {
@@ -120,7 +191,7 @@
         // copy array
         for (x = 0; x < width; ++x) {
             dots[x] = next[x].subarray();
-        };
+        }
 
         info.innerHTML = "dots: " + width * height + " - generation: " + ++cnt + " - population: " + population + " - fps: " + fps;
     });
