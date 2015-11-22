@@ -21,14 +21,10 @@
             getState: function (sum, oldState) {
                 let state = oldState;
 
-                if (oldState === 0 && sum === 3) {
+                if (oldState === 1) {
+                    state = sum === 2 || sum === 3 ? 1 : 0;
+                } else if (oldState === 0 && sum === 3) {
                     state = 1;
-                } else if (oldState === 1) {
-                    if (sum === 2 || sum === 3) {
-                        state = 1;
-                    } else {
-                        state = 0;
-                    }
                 }
 
                 return state;
@@ -40,10 +36,10 @@
             getState: function (sum, oldState) {
                 let state = oldState;
 
-                if (oldState === 0 && sum === 3) {
-                    state = 1;
-                } else if (oldState === 1) {
+                if (oldState === 1) {
                     state = "12345".indexOf(sum) !== -1 ? 1 : 0;
+                } else if (oldState === 0 && sum === 3) {
+                    state = 1;
                 }
 
                 return state;
@@ -55,14 +51,10 @@
             getState: function (sum, oldState) {
                 let state = oldState;
 
-                if (oldState === 0 && sum % 2 === 1) {
+                if (oldState === 1) {
+                    state = sum % 2 === 1 ? 1 : 0;
+                } else if (oldState === 0 && sum % 2 === 1) {
                     state = 1;
-                } else if (oldState === 1) {
-                    if (sum % 2 === 1) {
-                        state = 1;
-                    } else {
-                        state = 0;
-                    }
                 }
 
                 return state;
@@ -74,10 +66,42 @@
             getState: function (sum, oldState) {
                 let state = oldState;
 
-                if (oldState === 0 && "0123478".indexOf(sum) !== -1) {
-                    state = 1;
-                } else if (oldState === 1) {
+                if (oldState === 1) {
                     state = "01234678".indexOf(sum) !== -1 ? 1 : 0;
+                } else if (oldState === 0 && "0123478".indexOf(sum) !== -1) {
+                    state = 1;
+                }
+
+                return state;
+            }
+        },
+
+        "3/245": {
+            size: 2,
+            random: 0.4,
+            getState: function (sum, oldState) {
+                let state = oldState;
+
+                if (oldState === 1) {
+                    state = sum === 3 ? 1 : 0;
+                } else if (oldState === 0 && "245".indexOf(sum) !== -1) {
+                    state = 1;
+                }
+
+                return state;
+            }
+        },
+
+        "23/346": {
+            size: 2,
+            random: 0.7,
+            getState: function (sum, oldState) {
+                let state = oldState;
+
+                if (oldState === 1) {
+                    state = sum === 2 || sum === 3 ? 1 : 0;
+                } else if (oldState === 0 && "346".indexOf(sum) !== -1) {
+                    state = 1;
                 }
 
                 return state;
@@ -85,12 +109,13 @@
         }
     };
 
-    var   rule    = rules["1357/1357"];
-    const size    = 2;
+    var   rule    = rules["23/346"];
+    const size    = rule.size;
     const height  = Math.floor(700  / size);
     const width   = Math.floor(1400 / size);
     const cDead   = "#eeeeee";
-    const cAlive  = "#666666";
+    var   cAlive  = "#555555";
+
 
     const bh = height - 1;
     const bw = width  - 1;
@@ -104,21 +129,25 @@
     });
 
     document.body.innerHTML =
-        'rules <select id="rules">' + options + '</select>' +
+        'rule <select id="rules">' + options + '</select> <button id="reset">reset</button>' +
         '<div id="info">-</div>' +
         '<canvas id="world" width="' + width * size + '" height="' + height * size + '" style="border: 1px solid #999"></canvas>'
     ;
 
     const select = document.getElementById("rules");
+    const reset  = document.getElementById("reset");
     const info   = document.getElementById("info");
     const world  = document.getElementById("world").getContext("2d");
 
     select.onchange = function () {
         rule = rules[select.options[select.selectedIndex].value];
+        initWorld();
     };
 
+    reset.onclick = initWorld;
+
     // draw dot
-    function draw(world, x, y, cAlive, cDead, size, state) {
+    function draw(world, x, y, state) {
         world.fillStyle = state ? cAlive : cDead;
         world.fillRect(x * size, y * size, size, size);
 
@@ -126,15 +155,19 @@
     }
 
     // init world with random dots
-    for (let x = 0; x < width; ++x) {
-        const row = new Uint8Array(height);
+    function initWorld() {
+        for (let x = 0; x < width; ++x) {
+            const row = new Uint8Array(height);
 
-        for (let y = 0; y < height; ++y) {
-            row[y] = draw(world, x, y, cAlive, cDead, size, Math.random() * 10 > rule.random ? 1 : 0);
+            for (let y = 0; y < height; ++y) {
+                row[y] = draw(world, x, y, Math.random() * 10 > rule.random ? 1 : 0);
+            }
+
+            dots[x] = row;
         }
-
-        dots[x] = row;
     }
+
+    initWorld();
 
     let fps  = "", step = cnt;
 
@@ -144,8 +177,13 @@
 
         step = cnt;
         fps  = diff;
-
     }, 1000);
+
+    setInterval(function () {
+        if (cAlive < cDead) {
+            cAlive = "#" + (parseInt(cAlive.substr(1), 16) + 255).toString(16);
+        }
+    }, 5);
 
 
     // main loop
@@ -181,7 +219,7 @@
 
                 // only draw if state has changed
                 if (oldState != state) {
-                    draw(world, x, y, cAlive, cDead, size, state);
+                    draw(world, x, y, state);
                 }
 
                 population += state;
