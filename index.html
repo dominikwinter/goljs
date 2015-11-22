@@ -17,7 +17,6 @@
     var rules = {
         // Conways Original-Game of Life
         "23/3": {
-            size: 2,
             random: 9,
             getState: function (sum, oldState) {
                 let state = oldState;
@@ -37,7 +36,6 @@
         },
         // eine Welt, in der ein sich ausbreitendes, labyrinthartiges Muster entsteht
         "12345/3": {
-            size: 1,
             random: 9.9,
             getState: function (sum, oldState) {
                 let state = oldState;
@@ -53,7 +51,6 @@
         },
         // ein Kopiersystem, wobei sich aus einfachen kleinen Strukturen komplexe Muster entwickeln können
         "1357/1357": {
-            size: 2,
             random: 9.9999,
             getState: function (sum, oldState) {
                 let state = oldState;
@@ -73,7 +70,6 @@
         },
 
         "01234678/0123478": {
-            size: 2,
             random: 2,
             getState: function (sum, oldState) {
                 let state = oldState;
@@ -89,8 +85,8 @@
         }
     };
 
-    const rule    = rules["12345/3"];
-    const size    = rule.size;
+    var   rule    = rules["1357/1357"];
+    const size    = 2;
     const height  = Math.floor(700  / size);
     const width   = Math.floor(1400 / size);
     const cDead   = "#eeeeee";
@@ -103,15 +99,23 @@
 
     let cnt  = 0;
 
-    const canvas = document.createElement("canvas");
+    const options = Object.keys(rules).map(function (key) {
+        return '<option value="' + key + '">' + key + '</option>';
+    });
 
     document.body.innerHTML =
+        'rules <select id="rules">' + options + '</select>' +
         '<div id="info">-</div>' +
         '<canvas id="world" width="' + width * size + '" height="' + height * size + '" style="border: 1px solid #999"></canvas>'
     ;
 
-    const info  = document.getElementById("info");
-    const world = document.getElementById("world").getContext("2d");
+    const select = document.getElementById("rules");
+    const info   = document.getElementById("info");
+    const world  = document.getElementById("world").getContext("2d");
+
+    select.onchange = function () {
+        rule = rules[select.options[select.selectedIndex].value];
+    };
 
     // draw dot
     function draw(world, x, y, cAlive, cDead, size, state) {
