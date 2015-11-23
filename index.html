@@ -15,101 +15,105 @@
     "use strict";
 
     var rules = {
-        // Conways Original-Game of Life
-        "23/3": {
-            random: 9,
-            getState: function (sum, oldState) {
-                let state = oldState;
-
-                if (oldState === 1) {
-                    state = sum === 2 || sum === 3 ? 1 : 0;
-                } else if (oldState === 0 && sum === 3) {
-                    state = 1;
-                }
-
-                return state;
-            }
-        },
         // eine Welt, in der ein sich ausbreitendes, labyrinthartiges Muster entsteht
         "12345/3": {
+            size: 2,
             random: 9.9,
-            getState: function (sum, oldState) {
-                let state = oldState;
+            getStatus: function (sum, oldStatus) {
+                let status = oldStatus;
 
-                if (oldState === 1) {
-                    state = "12345".indexOf(sum) !== -1 ? 1 : 0;
-                } else if (oldState === 0 && sum === 3) {
-                    state = 1;
+                if (oldStatus === 1) {
+                    status = "12345".indexOf(sum) !== -1 ? 1 : 0;
+                } else if (oldStatus === 0 && sum === 3) {
+                    status = 1;
                 }
 
-                return state;
+                return status;
+            }
+        },
+        // Conways Original-Game of Life
+        "23/3": {
+            size: 2,
+            random: 9,
+            getStatus: function (sum, oldStatus) {
+                let status = oldStatus;
+
+                if (oldStatus === 1) {
+                    status = sum === 2 || sum === 3 ? 1 : 0;
+                } else if (oldStatus === 0 && sum === 3) {
+                    status = 1;
+                }
+
+                return status;
             }
         },
         // ein Kopiersystem, wobei sich aus einfachen kleinen Strukturen komplexe Muster entwickeln können
         "1357/1357": {
+            size: 2,
             random: 9.9999,
-            getState: function (sum, oldState) {
-                let state = oldState;
+            getStatus: function (sum, oldStatus) {
+                let status = oldStatus;
 
-                if (oldState === 1) {
-                    state = sum % 2 === 1 ? 1 : 0;
-                } else if (oldState === 0 && sum % 2 === 1) {
-                    state = 1;
+                if (oldStatus === 1) {
+                    status = sum % 2 === 1 ? 1 : 0;
+                } else if (oldStatus === 0 && sum % 2 === 1) {
+                    status = 1;
                 }
 
-                return state;
+                return status;
             }
         },
 
         "01234678/0123478": {
+            size: 2,
             random: 2,
-            getState: function (sum, oldState) {
-                let state = oldState;
+            getStatus: function (sum, oldStatus) {
+                let status = oldStatus;
 
-                if (oldState === 1) {
-                    state = "01234678".indexOf(sum) !== -1 ? 1 : 0;
-                } else if (oldState === 0 && "0123478".indexOf(sum) !== -1) {
-                    state = 1;
+                if (oldStatus === 1) {
+                    status = "01234678".indexOf(sum) !== -1 ? 1 : 0;
+                } else if (oldStatus === 0 && "0123478".indexOf(sum) !== -1) {
+                    status = 1;
                 }
 
-                return state;
+                return status;
             }
         },
 
         "3/245": {
             size: 2,
             random: 0.4,
-            getState: function (sum, oldState) {
-                let state = oldState;
+            getStatus: function (sum, oldStatus) {
+                let status = oldStatus;
 
-                if (oldState === 1) {
-                    state = sum === 3 ? 1 : 0;
-                } else if (oldState === 0 && "245".indexOf(sum) !== -1) {
-                    state = 1;
+                if (oldStatus === 1) {
+                    status = sum === 3 ? 1 : 0;
+                } else if (oldStatus === 0 && "245".indexOf(sum) !== -1) {
+                    status = 1;
                 }
 
-                return state;
+                return status;
             }
         },
 
         "23/346": {
             size: 2,
             random: 0.7,
-            getState: function (sum, oldState) {
-                let state = oldState;
+            getStatus: function (sum, oldStatus) {
+                let status = oldStatus;
 
-                if (oldState === 1) {
-                    state = sum === 2 || sum === 3 ? 1 : 0;
-                } else if (oldState === 0 && "346".indexOf(sum) !== -1) {
-                    state = 1;
+                if (oldStatus === 1) {
+                    status = sum === 2 || sum === 3 ? 1 : 0;
+                } else if (oldStatus === 0 && "346".indexOf(sum) !== -1) {
+                    status = 1;
                 }
 
-                return state;
+                return status;
             }
         }
     };
 
-    var   rule    = rules["23/346"];
+    var   rule    = rules["12345/3"];
     const size    = rule.size;
     const height  = Math.floor(700  / size);
     const width   = Math.floor(1400 / size);
@@ -122,7 +126,7 @@
 
     const dots = new Array(width);
 
-    let cnt  = 0;
+    let generation  = 0;
 
     const options = Object.keys(rules).map(function (key) {
         return '<option value="' + key + '">' + key + '</option>';
@@ -147,20 +151,28 @@
     reset.onclick = initWorld;
 
     // draw dot
-    function draw(world, x, y, state) {
-        world.fillStyle = state ? cAlive : cDead;
+    function draw(world, x, y, status) {
+        world.fillStyle = status ? cAlive : cDead;
         world.fillRect(x * size, y * size, size, size);
 
-        return state;
+        return status;
     }
 
     // init world with random dots
     function initWorld() {
+        generation  = 0;
+
+        world.fillStyle = cDead;
+        world.fillRect(0, 0, width * size, height * size);
+
         for (let x = 0; x < width; ++x) {
             const row = new Uint8Array(height);
 
             for (let y = 0; y < height; ++y) {
-                row[y] = draw(world, x, y, Math.random() * 10 > rule.random ? 1 : 0);
+                row[y] = Math.random() * 10 > rule.random
+                    ? draw(world, x, y, 1)
+                    : 0
+                ;
             }
 
             dots[x] = row;
@@ -169,16 +181,15 @@
 
     initWorld();
 
-    let fps  = "", step = cnt;
+    let fps  = "", step = generation;
 
     // calc fps
     setInterval(function () {
-        const diff =  cnt - step;
-
-        step = cnt;
-        fps  = diff;
+        fps  = generation - step;
+        step = generation;
     }, 1000);
 
+    // colors
     setInterval(function () {
         if (cAlive < cDead) {
             cAlive = "#" + (parseInt(cAlive.substr(1), 16) + 255).toString(16);
@@ -190,6 +201,7 @@
     setInterval(function () {
         const next = new Array(width);
         var population = 0;
+        var changed = 0;
         let x, y;
 
         for (x = 0; x < width; ++x) {
@@ -214,17 +226,18 @@
                     lb + mb + rb
                 ;
 
-                const oldState = dots[x][y];
-                const state    = rule.getState(sum, oldState);
+                const oldStatus = dots[x][y];
+                const status    = rule.getStatus(sum, oldStatus);
 
-                // only draw if state has changed
-                if (oldState != state) {
-                    draw(world, x, y, state);
+                // only draw if status has changed
+                if (oldStatus != status) {
+                    draw(world, x, y, status);
+                    ++changed;
                 }
 
-                population += state;
+                population += status;
 
-                row[y] = state;
+                row[y] = status;
             }
 
             next[x] = row;
@@ -235,7 +248,7 @@
             dots[x] = next[x].subarray();
         }
 
-        info.innerHTML = "dots: " + width * height + " - generation: " + ++cnt + " - population: " + population + " - fps: " + fps;
+        info.innerHTML = "pixels: " + width * height + " - fps: " + fps + " - generation: " + ++generation + " - population: " + population + " - changed: " + changed;
     });
 }();
 </script>
