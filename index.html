@@ -49,7 +49,7 @@
         // ein Kopiersystem, wobei sich aus einfachen kleinen Strukturen komplexe Muster entwickeln können
         "1357/1357": {
             size: 2,
-            random: 9.9999,
+            random: 9.999,
             getStatus: function (sum, oldStatus) {
                 let status = oldStatus;
 
@@ -133,7 +133,7 @@
     });
 
     document.body.innerHTML =
-        'rule <select id="rules">' + options + '</select> <button id="reset">reset</button> <span id="info">-</span>' +
+        'rule <select id="rules">' + options + '</select> <button id="reset">reset</button> <span id="info">-</span><br><br>' +
         '<canvas id="world" width="' + width * size + '" height="' + height * size + '" style="border: 1px solid #999"></canvas>'
     ;
 
