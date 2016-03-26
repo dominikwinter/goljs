@@ -2,7 +2,7 @@
 
 [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)
 
-[Demo](https://rawgit.com/dominikwinter/goljs/master/index.html)
+[Demo](https://rawgit.com/dominikwinter/goljs/master/index.html) - ES6 supported browsers (e.g. Goolge Chrome ≥ 48 or Mozilla Firefox ≥ 48) are badly need for the best experience.
 
 ## Examples
 
