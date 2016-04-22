@@ -10,11 +10,10 @@
 
 
 <script>
-document.write('<script src="goljs.js"' + (
-    navigator.userAgent.indexOf('Firefox') >= 0
-        ? ' type="application/javascript;version=1.7"'
-        : ''
-) + '><\/script>');
+// if firefox add version in type attribute
+document.write('<script src="goljs.js" type="application/javascript' + (
+    navigator.userAgent.indexOf('Firefox') >= 0 ? ';version=1.7' : ''
+) + '"><\/script>');
 </script>
 
 </body>
