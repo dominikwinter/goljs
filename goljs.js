@@ -1,12 +1,12 @@
-!function () {
+{
     "use strict";
 
-    var rules = {
+    const rules = {
         // eine Welt, in der ein sich ausbreitendes, labyrinthartiges Muster entsteht
         "12345/3": {
             size: 2,
             random: 9.9,
-            getStatus: function (sum, oldStatus) {
+            getStatus: (sum, oldStatus) => {
                 let status = oldStatus;
 
                 if (oldStatus === 1) {
@@ -22,7 +22,7 @@
         "23/3": {
             size: 2,
             random: 9,
-            getStatus: function (sum, oldStatus) {
+            getStatus: (sum, oldStatus) => {
                 let status = oldStatus;
 
                 if (oldStatus === 1) {
@@ -38,7 +38,7 @@
         "1357/1357": {
             size: 2,
             random: 9.999,
-            getStatus: function (sum, oldStatus) {
+            getStatus: (sum, oldStatus) => {
                 let status = oldStatus;
 
                 if (oldStatus === 1) {
@@ -54,7 +54,7 @@
         "01234678/0123478": {
             size: 2,
             random: 2,
-            getStatus: function (sum, oldStatus) {
+            getStatus: (sum, oldStatus) => {
                 let status = oldStatus;
 
                 if (oldStatus === 1) {
@@ -70,7 +70,7 @@
         "3/245": {
             size: 2,
             random: 0.4,
-            getStatus: function (sum, oldStatus) {
+            getStatus: (sum, oldStatus) => {
                 let status = oldStatus;
 
                 if (oldStatus === 1) {
@@ -86,7 +86,7 @@
         "23/346": {
             size: 2,
             random: 0.7,
-            getStatus: function (sum, oldStatus) {
+            getStatus: (sum, oldStatus) => {
                 let status = oldStatus;
 
                 if (oldStatus === 1) {
@@ -101,25 +101,22 @@
     };
 
     // init
-    var   rule    = rules["12345/3"];
+    let   rule    = rules["12345/3"];
     const size    = rule.size;
     const width   = Math.floor(1400 / size);
     const height  = Math.floor(700  / size);
     const pixels  = width * height;
-    const cDead   = "#eeeeee";
-    var   cAlive  = "#555555";
-
+    const cDead   = "#eee";
+    let   cAlive  = "rgb(232, 0, 193)";
 
     const bh = height - 1;
     const bw = width  - 1;
 
     const dots = new Array(width);
 
-    let generation  = 0;
+    let generation = 0;
 
-    const options = Object.keys(rules).map(function (key) {
-        return '<option value="' + key + '">' + key + '</option>';
-    });
+    const options = Object.keys(rules).map(key => '<option value="' + key + '">' + key + '</option>');
 
     document.body.innerHTML =
         'rule <select id="rules">' + options + '</select> <button id="reset">reset</button> <span id="info">-</span><br><br>' +
@@ -131,24 +128,14 @@
     const info   = document.getElementById("info");
     const world  = document.getElementById("world").getContext("2d");
 
-    select.onchange = function () {
+    select.onchange = () => {
         rule = rules[select.options[select.selectedIndex].value];
         initWorld();
     };
 
-    reset.onclick = initWorld;
-
-    // draw dot
-    function draw(world, x, y, status) {
-        world.fillStyle = status ? cAlive : cDead;
-        world.fillRect(x * size, y * size, size, size);
-
-        return status;
-    }
-
     // init world with random dots
-    function initWorld() {
-        generation  = 0;
+    const initWorld = () => {
+        generation = 0;
 
         world.fillStyle = cDead;
         world.fillRect(0, 0, width * size, height * size);
@@ -162,46 +149,51 @@
 
             dots[x] = row;
         }
-    }
+    };
+
+    reset.onclick = initWorld;
+
+    // draw dot
+    const draw = (world, x, y, status) => {
+        world.fillStyle = status ? cAlive : cDead;
+        world.fillRect(x * size, y * size, size, size);
+
+        return status;
+    };    
 
     initWorld();
 
-    let fps  = "", step = generation;
+    let fps = "", step = generation;
 
     // calc fps
-    setInterval(function () {
+    setInterval(() => {
         fps  = generation - step;
         step = generation;
     }, 1000);
 
 
-    !function () {
+    // change fancy colors
+    {
         let c = 0;
         const freq = Math.PI / 2 / 50;
 
-        function changeColor() {
-            var r = Math.abs(Math.round(Math.sin(freq * c + 2) * 255));
-            var g = Math.abs(Math.round(Math.sin(freq * c)     * 255));
-            var b = Math.abs(Math.round(Math.sin(freq * c + 4) * 255));
+        setInterval(() => {
+            const r = Math.abs(Math.round(Math.sin(freq * c + 2) * 255));
+            const g = Math.abs(Math.round(Math.sin(freq * c)     * 255));
+            const b = Math.abs(Math.round(Math.sin(freq * c + 4) * 255));
 
             cAlive = "rgb(" + r + "," + g  + "," + b + ")";
 
-            c += 1;
-        }
-
-        // colors
-        setInterval(changeColor, 100);
-
-        changeColor();
-    }();
-
+            ++c;
+        }, 100);
+    }
 
     // main loop
-    setInterval(function () {
+    setInterval(() => {
         const next  = new Array(width);
-        var dead    = 0;
-        var alive   = 0;
-        var changed = 0;
+        let dead    = 0;
+        let alive   = 0;
+        let changed = 0;
         let x, y;
 
         for (x = 0; x < width; ++x) {
@@ -248,12 +240,12 @@
             next[x] = row;
         }
 
-        // copy array
+        // copy arrays
         for (x = 0; x < width; ++x) {
-            dots[x] = next[x].slice();
+            dots[x] = next[x].slice(0);
         }
 
-        info.innerHTML =
+        info.textContent =
             "pixels: "          + pixels +
             " - fps: "          + fps +
             " - generation: "   + ++generation +
@@ -263,4 +255,4 @@
             " - changed: "      + changed
         ;
     }, 1);
-}()
+}
