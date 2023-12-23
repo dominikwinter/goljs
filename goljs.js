@@ -1,3 +1,4 @@
+let aa = 0;
 {
     const rules = {
         // eine Welt, in der ein sich ausbreitendes, labyrinthartiges Muster entsteht
@@ -88,18 +89,11 @@
 
     // init
     let rule = rules["12345/3"];
-    const size = rule.size;
-    const width = Math.floor(1400 / size);
-    const height = Math.floor(700 / size);
+    const width = 700;
+    const height = 400;
     const pixels = width * height;
-    const cDead = "#eee";
-    let cAlive = "rgb(232, 0, 193)";
-
-    const bh = height - 1;
-    const bw = width - 1;
-
-    const dots = new Array(width);
-
+    const cDead = 0xff_ee_ee_ee;
+    let cAlive = 0xff_c1_00_e8;
     let generation = 0;
 
     const options = Object.keys(rules).map((key) => `<option value="${key}">${key}</option>`);
@@ -109,56 +103,41 @@
         <button id="reset" name="reset" title="reset" type="button">reset</button> <span id="info">-</span><br><br>
         <canvas
             id="world"
-            width="${width * size}"
-            height="${height * size}"
-            style="border: 1px solid #999"></canvas>
+            width="${width}"
+            height="${height}"
+            style="border: 1px solid #999 width:${width * 2}px; height:${height * 2}px;"></canvas>
     `;
 
     const select = document.getElementById("rules");
     const reset = document.getElementById("reset");
     const info = document.getElementById("info");
     const world = document.getElementById("world").getContext("2d");
+    const data = world.createImageData(width, height);
+    const buffer = new Uint32Array(data.data.buffer);
+
+    // init world with random dots
+    const initWorld = () => {
+        generation = 0;
+        let i = 0;
+        for (let x = 0; x < width; ++x) {
+            for (let y = 0; y < height; ++y) {
+                buffer[i++] = Math.random() * 10 > rule.random ? cAlive : cDead;
+            }
+        }
+        world.putImageData(data, 0, 0);
+    };
+
+    reset.onclick = initWorld;
 
     select.onchange = () => {
         rule = rules[select.options[select.selectedIndex].value];
         initWorld();
     };
 
-    // init world with random dots
-    const initWorld = () => {
-        generation = 0;
-
-        world.fillStyle = cDead;
-        world.fillRect(0, 0, width * size, height * size);
-
-        for (let x = 0; x < width; ++x) {
-            const row = new Uint8Array(height);
-
-            for (let y = 0; y < height; ++y) {
-                row[y] = Math.random() * 10 > rule.random ? draw(world, x, y, 1) : 0;
-            }
-
-            dots[x] = row;
-        }
-    };
-
-    reset.onclick = initWorld;
-
-    // draw dot
-    const draw = (world, x, y, status) => {
-        world.fillStyle = status ? cAlive : cDead;
-        world.fillRect(x * size, y * size, size, size);
-        // world.beginPath();
-        // world.rect(x * size, y * size, size, size);
-        // world.fill();
-
-        return status;
-    };
-
     initWorld();
 
-    let fps = "",
-        step = generation;
+    let fps = "";
+    let step = generation;
 
     // calc fps
     setInterval(() => {
@@ -168,15 +147,15 @@
 
     // change fancy colors
     {
+        const FREQ = Math.PI / 2 / 50;
         let c = 0;
-        const freq = Math.PI / 2 / 50;
 
         setInterval(() => {
-            const r = Math.abs(Math.round(Math.sin(freq * c + 2) * 255));
-            const g = Math.abs(Math.round(Math.sin(freq * c) * 255));
-            const b = Math.abs(Math.round(Math.sin(freq * c + 4) * 255));
+            const r = Math.abs((Math.sin(FREQ * c + 2) * 255) | 0);
+            const g = Math.abs((Math.sin(FREQ * c + 0) * 255) | 0);
+            const b = Math.abs((Math.sin(FREQ * c + 4) * 255) | 0);
 
-            cAlive = `rgb(${r},${g},${b})`;
+            cAlive = (0xff << 24) | (b << 16) | (g << 8) | r;
 
             ++c;
         }, 100);
@@ -184,62 +163,51 @@
 
     // main loop
     setInterval(() => {
-        const next = new Array(width);
+        const next = new Uint32Array(buffer);
         let dead = 0;
         let alive = 0;
         let changed = 0;
-        let x, y;
+        let i = 0;
 
-        for (x = 0; x < width; ++x) {
-            const row = new Uint8Array(height);
+        //  1  2  3  4
+        //  5  6  7  8
+        //  9 10 11 12
+        // 13 14 15 16
 
-            for (y = 0; y < height; ++y) {
-                const t = x == 0 ? bw : x - 1;
-                const b = x == bw ? 0 : x + 1;
-                const l = y == 0 ? bh : y - 1;
-                const r = y == bh ? 0 : y + 1;
+        for (let x = 0; x < width; ++x) {
+            for (let y = 0; y < height; ++y) {
+                const tl = buffer[i - width - 1] === cDead ? 0 : 1;
+                const tm = buffer[i - width] === cDead ? 0 : 1;
+                const tr = buffer[i - width + 1] === cDead ? 0 : 1;
+                const ml = buffer[i - 1] === cDead ? 0 : 1;
+                const mr = buffer[i + 1] === cDead ? 0 : 1;
+                const bl = buffer[i + width - 1] === cDead ? 0 : 1;
+                const bm = buffer[i + width] === cDead ? 0 : 1;
+                const br = buffer[i + width + 1] === cDead ? 0 : 1;
 
-                const tl = dots[t][l];
-                const tm = dots[t][y];
-                const tr = dots[t][r];
-
-                const ml = dots[x][l];
-                const mr = dots[x][r];
-
-                const bl = dots[b][l];
-                const bm = dots[b][y];
-                const br = dots[b][r];
-
-                // calc surroundings
                 const sum = tl + tm + tr + ml + mr + bl + bm + br;
-                const oldStatus = dots[x][y];
-                const status = rule.getStatus(sum, oldStatus);
 
-                // only draw if status has changed
-                if (oldStatus != status) {
-                    draw(world, x, y, status);
+                const oldStatus = buffer[i] === cDead ? 0 : 1;
+                const newStatus = rule.getStatus(sum, oldStatus);
+
+                if (newStatus !== oldStatus) {
                     ++changed;
+                    next[i] = newStatus ? cAlive : cDead;
                 }
 
-                if (status) {
+                if (newStatus) {
                     ++dead;
                 } else {
                     ++alive;
                 }
 
-                row[y] = status;
+                ++i;
             }
-
-            next[x] = row;
         }
 
-        // copy arrays
-        for (x = 0; x < width; ++x) {
-            dots[x] = new Uint8Array(next[x]);
-            // dots[x] = next[x].slice(0);
-            // dots[x] = next[x].slice();
-            // dots[x] = [...next[x]];
-        }
+        // replace buffer with next generation
+        buffer.set(next);
+        world.putImageData(data, 0, 0);
 
         info.textContent = `
             pixels: ${pixels} -
