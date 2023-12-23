@@ -89,8 +89,9 @@ let aa = 0;
 
     // init
     let rule = rules["12345/3"];
-    const width = 700;
-    const height = 400;
+    const width = 1000;
+    const height = 500;
+    const total = width * height;
     const pixels = width * height;
     const cDead = 0xff_ee_ee_ee;
     let cAlive = 0xff_c1_00_e8;
@@ -105,7 +106,7 @@ let aa = 0;
             id="world"
             width="${width}"
             height="${height}"
-            style="border: 1px solid #999 width:${width * 2}px; height:${height * 2}px;"></canvas>
+            style="border: 1px solid #999 width:${(width * 1.5) | 0}px; height:${(height * 1.5) | 0}px;"></canvas>
     `;
 
     const select = document.getElementById("rules");
@@ -169,21 +170,21 @@ let aa = 0;
         let changed = 0;
         let i = 0;
 
-        //  1  2  3  4
-        //  5  6  7  8
-        //  9 10 11 12
-        // 13 14 15 16
-
         for (let x = 0; x < width; ++x) {
             for (let y = 0; y < height; ++y) {
-                const tl = buffer[i - width - 1] === cDead ? 0 : 1;
-                const tm = buffer[i - width] === cDead ? 0 : 1;
-                const tr = buffer[i - width + 1] === cDead ? 0 : 1;
-                const ml = buffer[i - 1] === cDead ? 0 : 1;
-                const mr = buffer[i + 1] === cDead ? 0 : 1;
-                const bl = buffer[i + width - 1] === cDead ? 0 : 1;
-                const bm = buffer[i + width] === cDead ? 0 : 1;
-                const br = buffer[i + width + 1] === cDead ? 0 : 1;
+                const offsetT = i - width < 0 ? width * (height - 1) : -width;
+                const offsetB = i + width >= total ? -width * (height - 1) : width;
+                const offsetL = i % width === 0 ? width - 1 : -1;
+                const offsetR = i % width === width - 1 ? -width + 1 : 1;
+
+                const tl = buffer[i + offsetT + offsetL] === cDead ? 0 : 1;
+                const tm = buffer[i + offsetT] === cDead ? 0 : 1;
+                const tr = buffer[i + offsetT + offsetR] === cDead ? 0 : 1;
+                const ml = buffer[i + offsetL] === cDead ? 0 : 1;
+                const mr = buffer[i + offsetR] === cDead ? 0 : 1;
+                const bl = buffer[i + offsetB + offsetL] === cDead ? 0 : 1;
+                const bm = buffer[i + offsetB] === cDead ? 0 : 1;
+                const br = buffer[i + offsetB + offsetR] === cDead ? 0 : 1;
 
                 const sum = tl + tm + tr + ml + mr + bl + bm + br;
 
@@ -218,5 +219,5 @@ let aa = 0;
             ratio: ${Math.round((alive / pixels) * 100)} : ${Math.round((dead / pixels) * 100)} -
             changed: ${changed}
         `;
-    }, 0);
+    }, 1);
 }
