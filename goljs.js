@@ -1,101 +1,73 @@
-let aa = 0;
 {
     const rules = {
-        // eine Welt, in der ein sich ausbreitendes, labyrinthartiges Muster entsteht
         "12345/3": {
-            size: 2,
-            random: 9.9,
-            getStatus: (sum, oldStatus) => {
-                if (oldStatus === 1) {
-                    return "12345".includes(sum) ? 1 : 0;
-                } else if (oldStatus === 0 && sum === 3) {
-                    return 1;
-                }
-
-                return oldStatus;
+            density: 0.1,
+            getStatus: (sum, status) => {
+                if (status) return "12345".includes(sum);
+                if (sum === 3) return true;
+                return status;
             },
         },
-        // Conways Original-Game of Life
-        "23/3": {
-            size: 2,
-            random: 9,
-            getStatus: (sum, oldStatus) => {
-                if (oldStatus === 1) {
-                    return sum === 2 || sum === 3 ? 1 : 0;
-                } else if (oldStatus === 0 && sum === 3) {
-                    return 1;
-                }
-
-                return oldStatus;
-            },
-        },
-        // ein Kopiersystem, wobei sich aus einfachen kleinen Strukturen komplexe Muster entwickeln können
-        "1357/1357": {
-            size: 2,
-            random: 9.999,
-            getStatus: (sum, oldStatus) => {
-                if (oldStatus === 1) {
-                    return sum % 2 === 1 ? 1 : 0;
-                } else if (oldStatus === 0 && sum % 2 === 1) {
-                    return 1;
-                }
-
-                return oldStatus;
-            },
-        },
-
         "01234678/0123478": {
-            size: 2,
-            random: 2,
-            getStatus: (sum, oldStatus) => {
-                if (oldStatus === 1) {
-                    return "01234678".includes(sum) ? 1 : 0;
-                } else if (oldStatus === 0 && "0123478".indexOf(sum) !== -1) {
-                    return 1;
-                }
-
-                return oldStatus;
+            density: 8,
+            getStatus: (sum, status) => {
+                if (status) return "01234678".includes(sum);
+                if ("0123478".includes(sum)) return true;
+                return status;
             },
         },
-
-        "3/245": {
-            size: 2,
-            random: 0.4,
-            getStatus: (sum, oldStatus) => {
-                if (oldStatus === 1) {
-                    return sum === 3 ? 1 : 0;
-                } else if (oldStatus === 0 && "245".includes(sum)) {
-                    return 1;
-                }
-
-                return oldStatus;
+        "123/1": {
+            density: 0.00001,
+            getStatus: (sum, status) => {
+                if (status) return "123".includes(sum);
+                if ("1".includes(sum)) return true;
+                return status;
             },
         },
-
+        "1357/1357": {
+            density: 0.001,
+            getStatus: (sum, status) => {
+                if (status) return sum % 2 === 1;
+                if (sum % 2 === 1) return true;
+                return status;
+            },
+        },
+        "23/3 (Conway's Original-Game of Life)": {
+            density: 1,
+            getStatus: (sum, status) => {
+                if (status) return sum === 2 || sum === 3;
+                if (sum === 3) return true;
+                return status;
+            },
+        },
         "23/346": {
-            size: 2,
-            random: 0.7,
-            getStatus: (sum, oldStatus) => {
-                if (oldStatus === 1) {
-                    return sum === 2 || sum === 3 ? 1 : 0;
-                } else if (oldStatus === 0 && "346".includes(sum)) {
-                    return 1;
-                }
-
-                return oldStatus;
+            density: 9.3,
+            getStatus: (sum, status) => {
+                if (status) return sum === 2 || sum === 3;
+                if ("346".includes(sum)) return true;
+                return status;
+            },
+        },
+        "3/245": {
+            density: 9.6,
+            getStatus: (sum, status) => {
+                if (status) return sum === 3;
+                if ("245".includes(sum)) return true;
+                return status;
             },
         },
     };
 
     // init
-    let rule = rules["12345/3"];
-    const width = 1000;
-    const height = 500;
-    const total = width * height;
-    const pixels = width * height;
+    const WIDTH = 700;
+    const HEIGHT = 500;
+    const TOTAL = WIDTH * HEIGHT;
+
     const cDead = 0xff_ee_ee_ee;
     let cAlive = 0xff_c1_00_e8;
+    let rule = rules["12345/3"];
     let generation = 0;
+    let step = generation;
 
     const options = Object.keys(rules).map((key) => `<option value="${key}">${key}</option>`);
 
@@ -104,78 +76,81 @@ let aa = 0;
         <button id="reset" name="reset" title="reset" type="button">reset</button> <span id="info">-</span><br><br>
         <canvas
             id="world"
-            width="${width}"
-            height="${height}"
-            style="border: 1px solid #999 width:${(width * 1.5) | 0}px; height:${(height * 1.5) | 0}px;"></canvas>
+            width="${WIDTH}"
+            height="${HEIGHT}"
+            style="border: 1px solid #999 width:${(WIDTH * 1.5) | 0}px; height:${(HEIGHT * 1.5) | 0}px;"></canvas>
     `;
 
-    const select = document.getElementById("rules");
-    const reset = document.getElementById("reset");
-    const info = document.getElementById("info");
+    const $select = document.getElementById("rules");
+    const $reset = document.getElementById("reset");
+    const $info = document.getElementById("info");
     const world = document.getElementById("world").getContext("2d");
-    const data = world.createImageData(width, height);
+    const data = world.createImageData(WIDTH, HEIGHT);
     const buffer = new Uint32Array(data.data.buffer);
 
     // init world with random dots
     const initWorld = () => {
         generation = 0;
-        let i = 0;
-        for (let x = 0; x < width; ++x) {
-            for (let y = 0; y < height; ++y) {
-                buffer[i++] = Math.random() * 10 > rule.random ? cAlive : cDead;
+        step = 0;
+
+        for (let i = 0, x = 0; x < WIDTH; ++x) {
+            for (let y = 0; y < HEIGHT; ++y) {
+                buffer[i++] = Math.random() * 10 < rule.density ? cAlive : cDead;
             }
         }
+
         world.putImageData(data, 0, 0);
     };
 
-    reset.onclick = initWorld;
-
-    select.onchange = () => {
-        rule = rules[select.options[select.selectedIndex].value];
+    $reset.onclick = initWorld;
+    $select.onchange = () => {
+        rule = rules[$select.options[$select.selectedIndex].value];
         initWorld();
     };
 
     initWorld();
 
-    let fps = "";
-    let step = generation;
-
     // calc fps
-    setInterval(() => {
-        fps = generation - step;
-        step = generation;
-    }, 1000);
-
-    // change fancy colors
+    let fps = "";
     {
-        const FREQ = Math.PI / 2 / 50;
-        let c = 0;
-
         setInterval(() => {
-            const r = Math.abs((Math.sin(FREQ * c + 2) * 255) | 0);
-            const g = Math.abs((Math.sin(FREQ * c + 0) * 255) | 0);
-            const b = Math.abs((Math.sin(FREQ * c + 4) * 255) | 0);
+            fps = generation - step;
+            step = generation;
+        }, 1000);
+    }
+
+    const FREQ = Math.PI / 2 / 50;
+    let l = 0;
+    let c = 0;
+
+    // when for a longer times nothing changed, then reset the world with initWorld()
+    const changedHistory = [];
+
+    // main loop
+    setInterval(() => {
+        // change fancy colors
+        if (l % 10 === 0) {
+            const r = Math.abs((Math.sin(FREQ * c + 0) * 220) | 0);
+            const g = Math.abs((Math.sin(FREQ * c + 2) * 220) | 0);
+            const b = Math.abs((Math.sin(FREQ * c + 4) * 220) | 0);
 
             cAlive = (0xff << 24) | (b << 16) | (g << 8) | r;
 
             ++c;
-        }, 100);
-    }
+        }
 
-    // main loop
-    setInterval(() => {
-        const next = new Uint32Array(buffer);
         let dead = 0;
         let alive = 0;
         let changed = 0;
-        let i = 0;
 
-        for (let x = 0; x < width; ++x) {
-            for (let y = 0; y < height; ++y) {
-                const offsetT = i - width < 0 ? width * (height - 1) : -width;
-                const offsetB = i + width >= total ? -width * (height - 1) : width;
-                const offsetL = i % width === 0 ? width - 1 : -1;
-                const offsetR = i % width === width - 1 ? -width + 1 : 1;
+        const next = new Uint32Array(buffer);
+
+        for (let i = 0, x = 0; x < WIDTH; ++x) {
+            for (let y = 0; y < HEIGHT; ++y) {
+                const offsetT = i - WIDTH < 0 ? WIDTH * (HEIGHT - 1) : -WIDTH;
+                const offsetB = i + WIDTH >= TOTAL ? -WIDTH * (HEIGHT - 1) : WIDTH;
+                const offsetL = i % WIDTH === 0 ? WIDTH - 1 : -1;
+                const offsetR = i % WIDTH === WIDTH - 1 ? -WIDTH + 1 : 1;
 
                 const tl = buffer[i + offsetT + offsetL] === cDead ? 0 : 1;
                 const tm = buffer[i + offsetT] === cDead ? 0 : 1;
@@ -188,7 +163,7 @@ let aa = 0;
 
                 const sum = tl + tm + tr + ml + mr + bl + bm + br;
 
-                const oldStatus = buffer[i] === cDead ? 0 : 1;
+                const oldStatus = buffer[i] !== cDead;
                 const newStatus = rule.getStatus(sum, oldStatus);
 
                 if (newStatus !== oldStatus) {
@@ -206,18 +181,29 @@ let aa = 0;
             }
         }
 
-        // replace buffer with next generation
         buffer.set(next);
+
+        if (!changed) return initWorld();
+
+        if (changedHistory.length > 100) {
+            if (changedHistory.every((c) => c === changed)) return initWorld();
+            changedHistory.shift();
+        }
+
+        changedHistory.push(changed);
+
         world.putImageData(data, 0, 0);
 
-        info.textContent = `
-            pixels: ${pixels} -
+        $info.textContent = `
+            pixels: ${TOTAL} -
             fps: ${fps} -
             generation: ${++generation} -
             alive: ${alive} -
             dead: ${dead} -
-            ratio: ${Math.round((alive / pixels) * 100)} : ${Math.round((dead / pixels) * 100)} -
+            ratio: ${Math.round((alive / TOTAL) * 100)} : ${Math.round((dead / TOTAL) * 100)} -
             changed: ${changed}
         `;
-    }, 1);
+
+        ++l;
+    }, 0);
 }
