@@ -1,16 +1,31 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="utf-8">
-    <title>GoL</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>GoL</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      background-color: #eee;
+      color: #333;
+    }
+    #controls { display: block; float: left; }
+    #info { display: block; float: right; }
+    #world {
+      display: block;
+      margin: 30px auto 0;
+      border: 1px solid #666;
+      box-shadow: 0px 0px 30px 0px #000;
+    }
+  </style>
 </head>
 <body>
 
 <script>
 // if firefox add version in type attribute
 document.write('<script src="goljs.js" type="application/javascript' + (
-    navigator.userAgent.indexOf('Firefox') >= 0 ? ';version=1.7' : ''
+  navigator.userAgent.indexOf('Firefox') >= 0 ? ';version=1.7' : ''
 ) + '"><\/script>');
 </script>
 
