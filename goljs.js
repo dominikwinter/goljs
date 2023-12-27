@@ -1,258 +1,299 @@
 {
-    "use strict";
+  function createAudio() {
+    const audioCtx = new AudioContext();
+    const gainNode = new GainNode(audioCtx, { gain: 0.1 });
 
-    const rules = {
-        // eine Welt, in der ein sich ausbreitendes, labyrinthartiges Muster entsteht
-        "12345/3": {
-            size: 2,
-            random: 9.9,
-            getStatus: (sum, oldStatus) => {
-                let status = oldStatus;
+    function scale(x, in_min, in_max, out_min, out_max) {
+      if (x > in_min) in_min = x;
+      if (x > in_max) in_max = x;
 
-                if (oldStatus === 1) {
-                    status = "12345".indexOf(sum) !== -1 ? 1 : 0;
-                } else if (oldStatus === 0 && sum === 3) {
-                    status = 1;
-                }
+      const d1 = x - in_min;
+      const d2 = in_max - in_min;
+      const f = d2 === 0 ? 1 : d1 / d2;
 
-                return status;
-            }
-        },
-        // Conways Original-Game of Life
-        "23/3": {
-            size: 2,
-            random: 9,
-            getStatus: (sum, oldStatus) => {
-                let status = oldStatus;
-
-                if (oldStatus === 1) {
-                    status = sum === 2 || sum === 3 ? 1 : 0;
-                } else if (oldStatus === 0 && sum === 3) {
-                    status = 1;
-                }
-
-                return status;
-            }
-        },
-        // ein Kopiersystem, wobei sich aus einfachen kleinen Strukturen komplexe Muster entwickeln können
-        "1357/1357": {
-            size: 2,
-            random: 9.999,
-            getStatus: (sum, oldStatus) => {
-                let status = oldStatus;
-
-                if (oldStatus === 1) {
-                    status = sum % 2 === 1 ? 1 : 0;
-                } else if (oldStatus === 0 && sum % 2 === 1) {
-                    status = 1;
-                }
-
-                return status;
-            }
-        },
-
-        "01234678/0123478": {
-            size: 2,
-            random: 2,
-            getStatus: (sum, oldStatus) => {
-                let status = oldStatus;
-
-                if (oldStatus === 1) {
-                    status = "01234678".indexOf(sum) !== -1 ? 1 : 0;
-                } else if (oldStatus === 0 && "0123478".indexOf(sum) !== -1) {
-                    status = 1;
-                }
-
-                return status;
-            }
-        },
-
-        "3/245": {
-            size: 2,
-            random: 0.4,
-            getStatus: (sum, oldStatus) => {
-                let status = oldStatus;
-
-                if (oldStatus === 1) {
-                    status = sum === 3 ? 1 : 0;
-                } else if (oldStatus === 0 && "245".indexOf(sum) !== -1) {
-                    status = 1;
-                }
-
-                return status;
-            }
-        },
-
-        "23/346": {
-            size: 2,
-            random: 0.7,
-            getStatus: (sum, oldStatus) => {
-                let status = oldStatus;
-
-                if (oldStatus === 1) {
-                    status = sum === 2 || sum === 3 ? 1 : 0;
-                } else if (oldStatus === 0 && "346".indexOf(sum) !== -1) {
-                    status = 1;
-                }
-
-                return status;
-            }
-        }
-    };
-
-    // init
-    let   rule    = rules["12345/3"];
-    const size    = rule.size;
-    const width   = Math.floor(1400 / size);
-    const height  = Math.floor(700  / size);
-    const pixels  = width * height;
-    const cDead   = "#eee";
-    let   cAlive  = "rgb(232, 0, 193)";
-
-    const bh = height - 1;
-    const bw = width  - 1;
-
-    const dots = new Array(width);
-
-    let generation = 0;
-
-    const options = Object.keys(rules).map(key => '<option value="' + key + '">' + key + '</option>');
-
-    document.body.innerHTML =
-        'rule <select id="rules">' + options + '</select> <button id="reset">reset</button> <span id="info">-</span><br><br>' +
-        '<canvas id="world" width="' + width * size + '" height="' + height * size + '" style="border: 1px solid #999"></canvas>'
-    ;
-
-    const select = document.getElementById("rules");
-    const reset  = document.getElementById("reset");
-    const info   = document.getElementById("info");
-    const world  = document.getElementById("world").getContext("2d");
-
-    select.onchange = () => {
-        rule = rules[select.options[select.selectedIndex].value];
-        initWorld();
-    };
-
-    // init world with random dots
-    const initWorld = () => {
-        generation = 0;
-
-        world.fillStyle = cDead;
-        world.fillRect(0, 0, width * size, height * size);
-
-        for (let x = 0; x < width; ++x) {
-            const row = new Array(height);
-
-            for (let y = 0; y < height; ++y) {
-                row[y] = Math.random() * 10 > rule.random ? draw(world, x, y, 1) : 0;
-            }
-
-            dots[x] = row;
-        }
-    };
-
-    reset.onclick = initWorld;
-
-    // draw dot
-    const draw = (world, x, y, status) => {
-        world.fillStyle = status ? cAlive : cDead;
-        world.fillRect(x * size, y * size, size, size);
-
-        return status;
-    };    
-
-    initWorld();
-
-    let fps = "", step = generation;
-
-    // calc fps
-    setInterval(() => {
-        fps  = generation - step;
-        step = generation;
-    }, 1000);
-
-
-    // change fancy colors
-    {
-        let c = 0;
-        const freq = Math.PI / 2 / 50;
-
-        setInterval(() => {
-            const r = Math.abs(Math.round(Math.sin(freq * c + 2) * 255));
-            const g = Math.abs(Math.round(Math.sin(freq * c)     * 255));
-            const b = Math.abs(Math.round(Math.sin(freq * c + 4) * 255));
-
-            cAlive = "rgb(" + r + "," + g  + "," + b + ")";
-
-            ++c;
-        }, 100);
+      return out_min + (out_max - out_min) * f;
     }
 
-    // main loop
-    setInterval(() => {
-        const next  = new Array(width);
-        let dead    = 0;
-        let alive   = 0;
-        let changed = 0;
-        let x, y;
+    let min = 1;
+    let max = Number.MAX_SAFE_INTEGER;
 
-        for (x = 0; x < width; ++x) {
-            const row = new Array(height);
+    return {
+      play(val) {
+        if (val < min) min = val;
+        if (val > max) max = val;
 
-            for (y = 0; y < height; ++y) {
-                const t = x == 0  ? bw : x - 1;
-                const b = x == bw ? 0  : x + 1;
-                const l = y == 0  ? bh : y - 1;
-                const r = y == bh ? 0  : y + 1;
+        const d = Math.round((max - min) / 2) + min;
 
-                const tl = dots[t][l];
-                const tm = dots[t][y];
-                const tr = dots[t][r];
-
-                const ml = dots[x][l];
-                const mr = dots[x][r];
-
-                const bl = dots[b][l];
-                const bm = dots[b][y];
-                const br = dots[b][r];
-
-                // calc surroundings
-                const sum =
-                    tl + tm + tr +
-                    ml + mr +
-                    bl + bm + br
-                ;
-
-                const oldStatus = dots[x][y];
-                const status    = rule.getStatus(sum, oldStatus);
-
-                // only draw if status has changed
-                if (oldStatus != status) {
-                    draw(world, x, y, status);
-                    ++changed;
-                }
-
-                status ? ++dead : ++alive;
-
-                row[y] = status;
-            }
-
-            next[x] = row;
+        if (val > d) {
+          min += Math.round(d * 0.1);
+        } else {
+          max -= Math.round(d * 0.1);
         }
 
-        // copy arrays
-        for (x = 0; x < width; ++x) {
-            dots[x] = next[x].slice(0);
+        audioCtx.resume().then(() => {
+          const osc = new OscillatorNode(audioCtx, { type: "sine", frequency: scale(val, min, max, 100, 1000) });
+          const start = audioCtx.currentTime + 0.1;
+          osc.connect(gainNode).connect(audioCtx.destination);
+          osc.start(start);
+          osc.stop(start + 0.1);
+        });
+      },
+    };
+  }
+
+  function createHistory(limit = 10_000) {
+    const history = new Set();
+
+    return {
+      reset() {
+        history.clear();
+      },
+      add(val) {
+        // limit history
+        if (history.size > limit) {
+          const iter = history[Symbol.iterator]();
+          history.delete(iter.next().value);
         }
 
-        info.textContent =
-            "pixels: "          + pixels +
-            " - fps: "          + fps +
-            " - generation: "   + ++generation +
-            " - alive: "        + alive +
-            " - dead: "         + dead +
-            " - ratio: "        + Math.round(alive / pixels * 100) + ":" + Math.round(dead / pixels * 100) +
-            " - changed: "      + changed
-        ;
-    }, 1);
+        history.add(val);
+      },
+      has(val) {
+        return history.has(val);
+      },
+    };
+  }
+
+  function createColors(color) {
+    const FREQ = Math.PI / 2 / 50;
+    let c = 0;
+    let l = 0;
+
+    return {
+      get() {
+        if (l++ % 10 === 0) {
+          const r = Math.abs(Math.round(Math.sin(FREQ * c + 0) * 220));
+          const g = Math.abs(Math.round(Math.sin(FREQ * c + 2) * 220));
+          const b = Math.abs(Math.round(Math.sin(FREQ * c + 4) * 220));
+
+          color = (0xff << 24) | (b << 16) | (g << 8) | r;
+
+          ++c;
+        }
+
+        return color;
+      },
+    };
+  }
+
+  function createFPSCounter() {
+    let step = generation;
+    let fps = "";
+
+    timer = setInterval(() => {
+      fps = generation - step;
+      step = generation;
+    }, 1000);
+
+    return {
+      reset() {
+        step = 0;
+      },
+      get() {
+        return fps;
+      },
+    };
+  }
+
+  const rules = {
+    "23678/25678": {
+      density: 0.1,
+      getStatus(alive, sum) {
+        if (alive) return "23678".includes(sum);
+        if ("25678".includes(sum)) return true;
+        return alive;
+      },
+    },
+    "1234567/2358": {
+      density: 0.2,
+      getStatus(alive, sum) {
+        if (alive) return "1234567".includes(sum);
+        if ("2358".includes(sum)) return true;
+        return alive;
+      },
+    },
+    "12345/3": {
+      density: 1,
+      getStatus(alive, sum) {
+        if (alive) return "12345".includes(sum);
+        if ("3".includes(sum)) return true;
+        return alive;
+      },
+    },
+    "01234678/0123478": {
+      density: 80,
+      getStatus(alive, sum) {
+        if (alive) return "01234678".includes(sum);
+        if ("0123478".includes(sum)) return true;
+        return alive;
+      },
+    },
+    "123/1": {
+      density: 99.2,
+      getStatus(alive, sum) {
+        if (alive) return "234678".includes(sum);
+        if ("1238".includes(sum)) return true;
+        return alive;
+      },
+    },
+    "14567/3": {
+      density: 50,
+      getStatus(alive, sum) {
+        if (alive) return "14567".includes(sum);
+        if ("3".includes(sum)) return true;
+        return alive;
+      },
+    },
+    "1357/1357": {
+      density: 0.01,
+      getStatus(alive, sum) {
+        if (alive) return sum % 2 === 1;
+        if (sum % 2 === 1) return true;
+        return alive;
+      },
+    },
+    "23/3 (Conway's Original-Game of Life)": {
+      density: 6,
+      getStatus(alive, sum) {
+        if (alive) return sum === 2 || sum === 3;
+        if (sum === 3) return true;
+        return alive;
+      },
+    },
+  };
+
+  // init
+  const WIDTH = 600;
+  const HEIGHT = 400;
+  const TOTAL = WIDTH * HEIGHT;
+
+  let rule = rules["23678/25678"];
+  let generation = 0;
+
+  const options = Object.keys(rules).map((key) => `<option value="${key}">${key}</option>`);
+
+  document.body.innerHTML = `
+    <span id="controls">
+      rule <select id="rules" name="rules" title="rules">${options}</select>
+      <button id="reset" name="reset" title="reset" type="button">reset</button>
+    </span>
+    <span id="info">-</span><br><br>
+    <canvas
+      id="world"
+      width="${WIDTH}"
+      height="${HEIGHT}"
+      style="border: 1px solid #999 width:${(WIDTH * 2) | 0}px; height:${(HEIGHT * 2) | 0}px;">
+    `;
+
+  const $select = document.getElementById("rules");
+  const $reset = document.getElementById("reset");
+  const $info = document.getElementById("info");
+  const w = document.getElementById("world").getContext("2d");
+  const d = w.createImageData(WIDTH, HEIGHT);
+  const b = new Uint32Array(d.data.buffer);
+  const a = createAudio();
+  const h = createHistory();
+  const c = createColors();
+  const f = createFPSCounter();
+
+  const COLOR_DEAD = 0xff_ee_ee_ee;
+  let COLOR_ALIVE = c.get();
+
+  // init world with random dots
+  const initWorld = () => {
+    generation = 0;
+    f.reset();
+    h.reset();
+
+    for (let i = 0, x = 0; x < WIDTH; ++x) {
+      for (let y = 0; y < HEIGHT; ++y) {
+        b[i++] = Math.random() * 100 < rule.density ? COLOR_ALIVE : COLOR_DEAD;
+      }
+    }
+
+    w.putImageData(d, 0, 0);
+  };
+
+  $reset.onclick = initWorld;
+  $select.onchange = () => {
+    rule = rules[$select.options[$select.selectedIndex].value];
+    initWorld();
+  };
+
+  initWorld();
+
+  // main loop
+  setInterval(() => {
+    const n = new Uint32Array(b);
+
+    let [dead, alive, changed] = [0, 0, 0];
+    let hash = 0;
+
+    COLOR_ALIVE = c.get();
+
+    for (let i = 0, x = 0; x < WIDTH; ++x) {
+      for (let y = 0; y < HEIGHT; ++y) {
+        const offsetT = i - WIDTH < 0 ? WIDTH * (HEIGHT - 1) : -WIDTH;
+        const offsetB = i + WIDTH >= TOTAL ? -WIDTH * (HEIGHT - 1) : WIDTH;
+        const offsetL = i % WIDTH === 0 ? WIDTH - 1 : -1;
+        const offsetR = i % WIDTH === WIDTH - 1 ? -WIDTH + 1 : 1;
+
+        const tl = b[i + offsetT + offsetL] === COLOR_DEAD ? 0 : 1;
+        const tm = b[i + offsetT] === COLOR_DEAD ? 0 : 1;
+        const tr = b[i + offsetT + offsetR] === COLOR_DEAD ? 0 : 1;
+        const ml = b[i + offsetL] === COLOR_DEAD ? 0 : 1;
+        const mr = b[i + offsetR] === COLOR_DEAD ? 0 : 1;
+        const bl = b[i + offsetB + offsetL] === COLOR_DEAD ? 0 : 1;
+        const bm = b[i + offsetB] === COLOR_DEAD ? 0 : 1;
+        const br = b[i + offsetB + offsetR] === COLOR_DEAD ? 0 : 1;
+
+        const sum = tl + tm + tr + ml + mr + bl + bm + br;
+
+        const oldStatus = b[i] !== COLOR_DEAD;
+        const newStatus = rule.getStatus(oldStatus, sum);
+
+        if (newStatus !== oldStatus) {
+          ++changed;
+          n[i] = newStatus ? COLOR_ALIVE : COLOR_DEAD;
+        }
+
+        hash += newStatus << i;
+        newStatus ? ++dead : ++alive;
+        ++i;
+      }
+    }
+
+    if (!changed) {
+      console.info("nothing changed");
+      return initWorld();
+    }
+
+    if (h.has(hash)) {
+      console.info("found dup in history");
+      return initWorld();
+    }
+
+    b.set(n);
+    a.play(changed);
+    h.add(hash);
+    w.putImageData(d, 0, 0);
+
+    $info.textContent = `
+      pixels: ${TOTAL} -
+      fps: ${f.get()} -
+      generation: ${++generation} -
+      alive: ${alive} -
+      dead: ${dead} -
+      ratio: ${((alive / TOTAL) * 100) | 0} : ${((dead / TOTAL) * 100) | 0} -
+      changed: ${changed}`;
+  }, 0);
 }
