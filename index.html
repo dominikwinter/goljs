@@ -7,14 +7,40 @@
 
   <style>
     body {
-      background-color: #eee;
+      background-color: #fff;
       color: #333;
     }
-    #controls { display: block; float: left; }
-    #info { display: block; float: right; }
+
+    #info {
+      width: 100%;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    #info > span {
+      display: inline-block;
+      min-width: 120px;
+      background-color: #eee;
+      border-bottom: 1px solid #aaa;
+      margin-left: 5px;
+      padding: 2px;
+      text-align: center;
+    }
+
+    #controls {
+      display: block;
+      float: left;
+    }
+
+    #controls > select {
+      height: 700px;
+      overflow-y: auto;
+    }
+
     #world {
       display: block;
-      margin: 30px auto 0;
+      float: left;
+      margin-left: 40px;
       border: 1px solid #666;
       box-shadow: 0px 0px 30px 0px #000;
     }
@@ -22,12 +48,7 @@
 </head>
 <body>
 
-<script>
-// if firefox add version in type attribute
-document.write('<script src="goljs.js" type="application/javascript' + (
-  navigator.userAgent.indexOf('Firefox') >= 0 ? ';version=1.7' : ''
-) + '"><\/script>');
-</script>
+<script src="gol.js"></script>
 
 </body>
 </html>
