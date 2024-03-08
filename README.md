@@ -1,3 +1,5 @@
+[Demo](https://rawgit.com/dominikwinter/goljs/master/index.html)
+
 # Game of Life Visualization and Audiolization App
 
 This is a browser-based application that embodies the [Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life), a cellular automaton devised by the British mathematician [John Horton Conway](https://en.wikipedia.org/wiki/John_Horton_Conway). The app is not only an interesting visual spectacle, but also develops unique acoustic patterns.
