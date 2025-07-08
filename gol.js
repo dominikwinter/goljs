@@ -13,21 +13,25 @@
   function getRule(rule) {
     let [birth, survival, density] = rule.split("/");
 
-    birth = birth
-      .slice(1)
-      .split("")
-      .map((n) => parseInt(n, 10));
+    birth = new Set(
+      birth
+        .slice(1)
+        .split("")
+        .map((n) => parseInt(n, 10))
+    );
 
-    survival = survival
-      .slice(1)
-      .split("")
-      .map((n) => parseInt(n, 10));
+    survival = new Set(
+      survival
+        .slice(1)
+        .split("")
+        .map((n) => parseInt(n, 10))
+    );
 
     return {
       density: parseFloat(density.slice(1)),
       getStatus(alive, sum) {
-        if (alive) return survival.includes(sum);
-        if (birth.includes(sum)) return true;
+        if (alive) return survival.has(sum);
+        if (birth.has(sum)) return true;
         return alive;
       },
     };
@@ -35,67 +39,138 @@
 
   function createAudio() {
     const audioCtx = new AudioContext();
-    const gainNode = new GainNode(audioCtx, { gain: 0.02 });
+    const masterGain = new GainNode(audioCtx, { gain: 0.2 });
+    masterGain.connect(audioCtx.destination);
 
-    function scale(x, in_min, in_max, out_min, out_max) {
-      return ((x - in_min) / (in_max - in_min)) * (out_max - out_min) + out_min;
-    }
-
-    let min = 1;
-    let max = 2;
-
+    let drones = [];
     let ready = false;
 
     return {
-      play(val) {
+      play(dead, alive, changed) {
         if (!ready) {
-          audioCtx.resume().then(() => {
-            ready = true;
-          });
-
+          audioCtx.resume().then(() => (ready = true));
           return;
         }
 
-        if (val < min) min = val;
-        if (val > max) max = val;
+        const total = alive + dead;
+        const density = alive / total;
+        const activity = Math.min(changed / 500, 1);
 
-        const d = Math.round((max - min) / 2) + min;
+        const targetDrones = alive > 0 ? Math.max(1, Math.floor(density * 4)) : 0;
 
-        if (val > d) {
-          min += Math.round(min * 0.01);
-        } else {
-          max -= Math.round(max * 0.01);
+        // Add drones if needed
+        while (drones.length < targetDrones) {
+          const freq = 60 + Math.random() * 100;
+          const osc = new OscillatorNode(audioCtx, {
+            type: "sine",
+            frequency: freq,
+          });
+          const gain = new GainNode(audioCtx, { gain: 0 }); // START AT ZERO
+
+          // SMOOTH FADE-IN
+          const now = audioCtx.currentTime;
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.08, now + 0.1); // 100ms fade-in
+
+          osc.connect(gain).connect(masterGain);
+          osc.start(now);
+
+          drones.push({ osc, gain, baseFreq: freq });
         }
 
-        const osc = new OscillatorNode(audioCtx, {
-          type: "sawtooth",
-          frequency: scale(val, min, max, 30, 400),
+        // Remove excess drones gracefully
+        while (drones.length > targetDrones) {
+          const drone = drones.pop();
+          const now = audioCtx.currentTime;
+
+          // SMOOTH FADE-OUT
+          drone.gain.gain.cancelScheduledValues(now);
+          drone.gain.gain.setValueAtTime(drone.gain.gain.value, now);
+          drone.gain.gain.linearRampToValueAtTime(0, now + 0.2); // 200ms fade-out
+
+          setTimeout(() => {
+            try {
+              drone.osc.stop();
+            } catch (e) {
+              // Oscillator might already be stopped
+            }
+          }, 250);
+        }
+
+        // Modulate existing drones (SMOOTHLY)
+        drones.forEach((drone, i) => {
+          const now = audioCtx.currentTime;
+          const modulation = Math.sin(now * (0.3 + i * 0.15)) * activity * 15;
+
+          // SMOOTH frequency changes
+          drone.osc.frequency.cancelScheduledValues(now);
+          drone.osc.frequency.setValueAtTime(drone.osc.frequency.value, now);
+          drone.osc.frequency.linearRampToValueAtTime(drone.baseFreq + modulation, now + 0.05);
+
+          // SMOOTH volume changes
+          const targetVolume = 0.08 + activity * 0.06;
+          drone.gain.gain.cancelScheduledValues(now);
+          drone.gain.gain.setValueAtTime(drone.gain.gain.value, now);
+          drone.gain.gain.linearRampToValueAtTime(targetVolume, now + 0.05);
         });
 
-        const start = audioCtx.currentTime + 0.1;
+        // Sparkles with SMOOTH envelope
+        if (activity > 0.3 && Math.random() < 0.4) {
+          const sparkle = new OscillatorNode(audioCtx, {
+            type: "sine",
+            frequency: 400 + Math.random() * 800,
+          });
+          const sparkleGain = new GainNode(audioCtx, { gain: 0 }); // START AT ZERO
 
-        osc.connect(gainNode).connect(audioCtx.destination);
-        osc.start(start);
-        osc.stop(start + 0.2);
+          const now = audioCtx.currentTime;
+          // SMOOTH ATTACK-DECAY envelope
+          sparkleGain.gain.setValueAtTime(0, now);
+          sparkleGain.gain.linearRampToValueAtTime(0.15, now + 0.02); // 20ms attack
+          sparkleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); // 280ms decay
+
+          sparkle.connect(sparkleGain).connect(masterGain);
+          sparkle.start(now);
+          sparkle.stop(now + 0.3);
+        }
+
+        // Pulse sounds with SMOOTH envelope
+        if (activity > 0.1 && Math.random() < 0.2) {
+          const pulse = new OscillatorNode(audioCtx, {
+            type: "triangle",
+            frequency: 120 + activity * 80,
+          });
+          const pulseGain = new GainNode(audioCtx, { gain: 0 }); // START AT ZERO
+
+          const now = audioCtx.currentTime;
+          // SMOOTH envelope
+          pulseGain.gain.setValueAtTime(0, now);
+          pulseGain.gain.linearRampToValueAtTime(0.1, now + 0.01); // 10ms attack
+          pulseGain.gain.linearRampToValueAtTime(0.05, now + 0.05); // 40ms sustain
+          pulseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); // 100ms release
+
+          pulse.connect(pulseGain).connect(masterGain);
+          pulse.start(now);
+          pulse.stop(now + 0.15);
+        }
       },
     };
   }
 
-  function createHistory(limit = 50_000) {
-    let history = Array(limit);
-    let pos = 0;
+  function createHistory(limit = MAX_GENERATIONS) {
+    let history = new Array(limit);
+    let len = 0;
 
     return {
       reset() {
-        history = Array(limit);
-        pos = 0;
+        history = new Array(limit);
+        len = 0;
       },
       add(val) {
-        if (history.size > limit) {
-          pos = 0;
+        if (len > limit) {
+          len = 0;
         }
 
-        history[pos++] = val;
+        history[len++] = val;
       },
       has(val) {
         return history.includes(val);
@@ -149,15 +224,17 @@
     let alive = 0;
     let changed = 0;
 
+    const num = new Intl.NumberFormat("de-DE");
+
     setInterval(() => {
       $info.innerHTML = `
-        <span>pixels: ${new Intl.NumberFormat("de-DE").format(TOTAL)}</span>
+        <span>pixels: ${num.format(TOTAL)}</span>
         <span>fps: ${fps.get()}</span>
-        <span>generation: ${new Intl.NumberFormat("de-DE").format(generation)}</span>
-        <span>alive: ${new Intl.NumberFormat("de-DE").format(alive)}</span>
-        <span>dead: ${new Intl.NumberFormat("de-DE").format(dead)}</span>
+        <span>generation: ${num.format(generation)}</span>
+        <span>alive: ${num.format(alive)}</span>
+        <span>dead: ${num.format(dead)}</span>
         <span>ratio: ${Math.round((alive / TOTAL) * 100)} : ${Math.round((dead / TOTAL) * 100)}</span>
-        <span>changed: ${new Intl.NumberFormat("de-DE").format(changed)}</span>`;
+        <span>changed: ${num.format(changed)}</span>`;
     }, 200);
 
     return {
@@ -237,7 +314,7 @@
   const data = world.createImageData(WIDTH, HEIGHT);
   const buffer = new Uint32Array(data.data.buffer);
   const audio = createAudio();
-  const history = createHistory(MAX_GENERATIONS);
+  const history = createHistory();
   const colors = createColors();
   const fps = createFPSCounter();
   const info = createInfos($info);
@@ -282,16 +359,15 @@
         const offsetL = i % WIDTH === 0 ? WIDTH - 1 : -1;
         const offsetR = i % WIDTH === WIDTH - 1 ? -WIDTH + 1 : 1;
 
-        const tl = buffer[i + offsetT + offsetL] === COLOR_DEAD ? 0 : 1;
-        const tm = buffer[i + offsetT] === COLOR_DEAD ? 0 : 1;
-        const tr = buffer[i + offsetT + offsetR] === COLOR_DEAD ? 0 : 1;
-        const ml = buffer[i + offsetL] === COLOR_DEAD ? 0 : 1;
-        const mr = buffer[i + offsetR] === COLOR_DEAD ? 0 : 1;
-        const bl = buffer[i + offsetB + offsetL] === COLOR_DEAD ? 0 : 1;
-        const bm = buffer[i + offsetB] === COLOR_DEAD ? 0 : 1;
-        const br = buffer[i + offsetB + offsetR] === COLOR_DEAD ? 0 : 1;
-
-        const sum = tl + tm + tr + ml + mr + bl + bm + br;
+        const sum =
+          (buffer[i + offsetT + offsetL] === COLOR_DEAD ? 0 : 1) +
+          (buffer[i + offsetT] === COLOR_DEAD ? 0 : 1) +
+          (buffer[i + offsetT + offsetR] === COLOR_DEAD ? 0 : 1) +
+          (buffer[i + offsetL] === COLOR_DEAD ? 0 : 1) +
+          (buffer[i + offsetR] === COLOR_DEAD ? 0 : 1) +
+          (buffer[i + offsetB + offsetL] === COLOR_DEAD ? 0 : 1) +
+          (buffer[i + offsetB] === COLOR_DEAD ? 0 : 1) +
+          (buffer[i + offsetB + offsetR] === COLOR_DEAD ? 0 : 1);
 
         const oldStatus = buffer[i] !== COLOR_DEAD;
         const newStatus = rule.getStatus(oldStatus, sum);
@@ -323,7 +399,7 @@
     }
 
     buffer.set(n);
-    audio.play(changed);
+    audio.play(dead, alive, changed);
     history.add(hash);
     info.update(dead, alive, changed);
     world.putImageData(data, 0, 0);
