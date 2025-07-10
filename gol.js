@@ -38,15 +38,22 @@
   }
 
   function createAudio() {
-    const audioCtx = new AudioContext();
-    const masterGain = new GainNode(audioCtx, { gain: 0.2 });
-    masterGain.connect(audioCtx.destination);
-
-    let drones = [];
+    let audioCtx = null;
+    let masterGain = null;
+    const drones = new Set();
     let ready = false;
 
     return {
+      init() {
+        if (audioCtx) return;
+
+        audioCtx = new AudioContext();
+        masterGain = new GainNode(audioCtx, { gain: 0.2 });
+        masterGain.connect(audioCtx.destination);
+      },
       play(dead, alive, changed) {
+        if (!audioCtx) return; // Audio not initialized yet, skip
+
         if (!ready) {
           audioCtx.resume().then(() => (ready = true));
           return;
@@ -56,16 +63,16 @@
         const density = alive / total;
         const activity = Math.min(changed / 500, 1);
 
-        const targetDrones = alive > 0 ? Math.max(1, Math.floor(density * 4)) : 0;
+        const targetDrones = alive > 0 ? Math.max(1, Math.floor(density * 3)) : 0;
 
         // Add drones if needed
-        while (drones.length < targetDrones) {
-          const freq = 60 + Math.random() * 100;
+        while (drones.size < targetDrones) {
+          const freq = 60 + activity * 50;
+          const gain = new GainNode(audioCtx, { gain: 0 }); // START AT ZERO
           const osc = new OscillatorNode(audioCtx, {
             type: "sine",
             frequency: freq,
           });
-          const gain = new GainNode(audioCtx, { gain: 0 }); // START AT ZERO
 
           // SMOOTH FADE-IN
           const now = audioCtx.currentTime;
@@ -75,12 +82,13 @@
           osc.connect(gain).connect(masterGain);
           osc.start(now);
 
-          drones.push({ osc, gain, baseFreq: freq });
+          drones.add({ osc, gain, baseFreq: freq });
         }
 
         // Remove excess drones gracefully
-        while (drones.length > targetDrones) {
-          const drone = drones.pop();
+        while (drones.size > targetDrones) {
+          const drone = drones.values().next().value;
+          drones.delete(drone);
           const now = audioCtx.currentTime;
 
           // SMOOTH FADE-OUT
@@ -91,10 +99,8 @@
           setTimeout(() => {
             try {
               drone.osc.stop();
-            } catch (e) {
-              // Oscillator might already be stopped
-            }
-          }, 250);
+            } catch {}
+          }, 0);
         }
 
         // Modulate existing drones (SMOOTHLY)
@@ -102,55 +108,63 @@
           const now = audioCtx.currentTime;
           const modulation = Math.sin(now * (0.3 + i * 0.15)) * activity * 15;
 
+          // Ensure modulation is finite and within reasonable bounds
+          const safeModulation = isFinite(modulation) ? Math.max(-50, Math.min(50, modulation)) : 0;
+
           // SMOOTH frequency changes
           drone.osc.frequency.cancelScheduledValues(now);
           drone.osc.frequency.setValueAtTime(drone.osc.frequency.value, now);
-          drone.osc.frequency.linearRampToValueAtTime(drone.baseFreq + modulation, now + 0.05);
+          drone.osc.frequency.linearRampToValueAtTime(drone.baseFreq + safeModulation, now + 0.05);
 
           // SMOOTH volume changes
-          const targetVolume = 0.08 + activity * 0.06;
+          const targetVolume = Math.max(0, Math.min(1, 0.08 + activity * 0.06));
           drone.gain.gain.cancelScheduledValues(now);
           drone.gain.gain.setValueAtTime(drone.gain.gain.value, now);
           drone.gain.gain.linearRampToValueAtTime(targetVolume, now + 0.05);
         });
 
-        // Sparkles with SMOOTH envelope
-        if (activity > 0.3 && Math.random() < 0.4) {
-          const sparkle = new OscillatorNode(audioCtx, {
-            type: "sine",
-            frequency: 400 + Math.random() * 800,
-          });
-          const sparkleGain = new GainNode(audioCtx, { gain: 0 }); // START AT ZERO
+        // Sharp sparkle sounds
+        if (activity > 0.01 && Math.random() < 0.3) {
+          const density = alive / (alive + dead);
+          const sparkleCount = Math.max(1, Math.ceil(density * 5));
 
-          const now = audioCtx.currentTime;
-          // SMOOTH ATTACK-DECAY envelope
-          sparkleGain.gain.setValueAtTime(0, now);
-          sparkleGain.gain.linearRampToValueAtTime(0.15, now + 0.02); // 20ms attack
-          sparkleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); // 280ms decay
+          for (let i = 0; i < sparkleCount; i++) {
+            const freq = Math.max(200, Math.min(800, 300 + density * 400 + i * 50));
+            const sparkle = new OscillatorNode(audioCtx, {
+              type: "sine",
+              frequency: freq,
+            });
 
-          sparkle.connect(sparkleGain).connect(masterGain);
-          sparkle.start(now);
-          sparkle.stop(now + 0.3);
+            const now = audioCtx.currentTime;
+            const delay = i * 1;
+
+            const sparkleGain = new GainNode(audioCtx, { gain: 0 });
+            sparkleGain.gain.setValueAtTime(0, now + delay);
+            sparkleGain.gain.linearRampToValueAtTime(0.15, now + delay + 0.005);
+            sparkleGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.05);
+
+            sparkle.connect(sparkleGain).connect(masterGain);
+            sparkle.start(now + delay);
+            sparkle.stop(now + delay + 0.05);
+          }
         }
 
-        // Pulse sounds with SMOOTH envelope
-        if (activity > 0.1 && Math.random() < 0.2) {
+        // Simple pulse sound for high activity
+        if (activity > 0.5 && Math.random() < 0.1) {
           const pulse = new OscillatorNode(audioCtx, {
             type: "triangle",
             frequency: 120 + activity * 80,
           });
-          const pulseGain = new GainNode(audioCtx, { gain: 0 }); // START AT ZERO
+          const pulseGain = new GainNode(audioCtx, { gain: 0.05 });
 
           const now = audioCtx.currentTime;
-          // SMOOTH envelope
           pulseGain.gain.setValueAtTime(0, now);
-          pulseGain.gain.linearRampToValueAtTime(0.1, now + 0.01); // 10ms attack
-          pulseGain.gain.linearRampToValueAtTime(0.05, now + 0.05); // 40ms sustain
-          pulseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); // 100ms release
+          pulseGain.gain.linearRampToValueAtTime(0.05, now + 0.01);
+          pulseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
           pulse.connect(pulseGain).connect(masterGain);
           pulse.start(now);
-          pulse.stop(now + 0.15);
+          pulse.stop(now + 0.1);
         }
       },
     };
@@ -247,10 +261,14 @@
   }
 
   const rules = [
+    "B0/S6/D0.00001",
+    "B01/S012467/D0.04",
     "B0123478/S01234678/D80",
     "B0123478/S34678/D3",
     "B017/S1/D99.5",
     "B028/S0124/D0.2",
+    "B05/S1235678/D1",
+    "B058/S4567/D.00001",
     "B08/S4/D0.01",
     "B1/S012345678/D0.0005",
     "B1238/S234678/D99.2",
@@ -298,7 +316,7 @@
   document.body.innerHTML = `
     <div id="info"></div>
     <div id="controls">
-      rules<br>
+      <button id="randomBtn">?</button><input type="text" id="ruleInput" placeholder="e.g., B3/S23/D5"><br>
       <select id="rules" name="rules" title="rules" multiple>${options}</select>
     </div>
     <canvas
@@ -309,6 +327,8 @@
     `;
 
   const $select = document.getElementById("rules");
+  const $ruleInput = document.getElementById("ruleInput");
+  const $randomBtn = document.getElementById("randomBtn");
   const $info = document.getElementById("info");
   const world = document.getElementById("world").getContext("2d");
   const data = world.createImageData(WIDTH, HEIGHT);
@@ -337,8 +357,58 @@
     world.putImageData(data, 0, 0);
   };
 
-  $select.onclick = () => {
-    rule = getRule(rules[$select.options[$select.selectedIndex].value]);
+  $select.onchange = $select.onclick = (e) => {
+    e.preventDefault();
+
+    audio.init();
+    const selectedRule = rules[$select.options[$select.selectedIndex].value];
+    $ruleInput.value = selectedRule;
+    rule = getRule(selectedRule);
+    initWorld();
+  };
+
+  $ruleInput.onkeydown = (e) => {
+    audio.init();
+    if (e.key === "Enter") {
+      try {
+        rule = getRule($ruleInput.value);
+        initWorld();
+      } catch {
+        alert(`Invalid rule format: ${$ruleInput.value}`);
+      }
+    }
+  };
+
+  $randomBtn.onclick = () => {
+    audio.init();
+
+    // Generate random birth conditions
+    const birthCount = Math.floor(Math.random() * 9) + 1;
+    const birthNumbers = [];
+    for (let i = 0; i < birthCount; i++) {
+      birthNumbers.push(Math.floor(Math.random() * 9));
+    }
+    const birth = "B" + [...new Set(birthNumbers)].sort().join("");
+
+    // Generate random survival conditions
+    const survivalCount = Math.floor(Math.random() * 9) + 1;
+    const survivalNumbers = [];
+    for (let i = 0; i < survivalCount; i++) {
+      survivalNumbers.push(Math.floor(Math.random() * 9));
+    }
+    const survival = "S" + [...new Set(survivalNumbers)].sort().join("");
+
+    // Generate random density
+    const densities =
+      "0.000001 0.00001 0.0001 0.001 0.01 0.1 1 2 3 4 5 6 7 8 9 10 20 30 40 50 60 70 80 90 " +
+      "99 99.9 99.99 99.999 99.9999 99.99999 99.999999".split(" ");
+
+    const randomDensity = densities[Math.floor(Math.random() * densities.length)];
+    const densityStr = "D" + randomDensity;
+
+    const randomRule = `${birth}/${survival}/${densityStr}`;
+    $ruleInput.value = randomRule;
+    rule = getRule(randomRule);
     initWorld();
   };
 
