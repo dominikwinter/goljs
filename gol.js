@@ -267,7 +267,7 @@
     "B0123478/S34678/D3",
     "B017/S1/D99.5",
     "B028/S0124/D0.2",
-    "B05/S1235678/D1",
+    "B05/S35678/D1",
     "B058/S4567/D.00001",
     "B08/S4/D0.01",
     "B1/S012345678/D0.0005",
@@ -422,35 +422,35 @@
 
     COLOR_ALIVE = colors.get();
 
-    for (let i = 0, x = 0; x < WIDTH; ++x) {
-      for (let y = 0; y < HEIGHT; ++y) {
-        const offsetT = i - WIDTH < 0 ? WIDTH * (HEIGHT - 1) : -WIDTH;
-        const offsetB = i + WIDTH >= TOTAL ? -WIDTH * (HEIGHT - 1) : WIDTH;
-        const offsetL = i % WIDTH === 0 ? WIDTH - 1 : -1;
-        const offsetR = i % WIDTH === WIDTH - 1 ? -WIDTH + 1 : 1;
+    for (let i = 0; i < TOTAL; ++i) {
+      const x = i % WIDTH;
+      const y = Math.floor(i / WIDTH);
 
-        const sum =
-          (buffer[i + offsetT + offsetL] === COLOR_DEAD ? 0 : 1) +
-          (buffer[i + offsetT] === COLOR_DEAD ? 0 : 1) +
-          (buffer[i + offsetT + offsetR] === COLOR_DEAD ? 0 : 1) +
-          (buffer[i + offsetL] === COLOR_DEAD ? 0 : 1) +
-          (buffer[i + offsetR] === COLOR_DEAD ? 0 : 1) +
-          (buffer[i + offsetB + offsetL] === COLOR_DEAD ? 0 : 1) +
-          (buffer[i + offsetB] === COLOR_DEAD ? 0 : 1) +
-          (buffer[i + offsetB + offsetR] === COLOR_DEAD ? 0 : 1);
+      const top = y === 0 ? TOTAL - WIDTH : -WIDTH;
+      const bottom = y === HEIGHT - 1 ? -TOTAL + WIDTH : WIDTH;
+      const left = x === 0 ? WIDTH - 1 : -1;
+      const right = x === WIDTH - 1 ? -WIDTH + 1 : 1;
 
-        const oldStatus = buffer[i] !== COLOR_DEAD;
-        const newStatus = rule.getStatus(oldStatus, sum);
+      const sum =
+        (buffer[i + top + left] === COLOR_DEAD ? 0 : 1) +
+        (buffer[i + top] === COLOR_DEAD ? 0 : 1) +
+        (buffer[i + top + right] === COLOR_DEAD ? 0 : 1) +
+        (buffer[i + left] === COLOR_DEAD ? 0 : 1) +
+        (buffer[i + right] === COLOR_DEAD ? 0 : 1) +
+        (buffer[i + bottom + left] === COLOR_DEAD ? 0 : 1) +
+        (buffer[i + bottom] === COLOR_DEAD ? 0 : 1) +
+        (buffer[i + bottom + right] === COLOR_DEAD ? 0 : 1);
 
-        if (newStatus !== oldStatus) {
-          ++changed;
-          n[i] = newStatus ? COLOR_ALIVE : COLOR_DEAD;
-        }
+      const oldStatus = buffer[i] !== COLOR_DEAD;
+      const newStatus = rule.getStatus(oldStatus, sum);
 
-        hash += newStatus << i;
-        newStatus ? ++alive : ++dead;
-        ++i;
+      if (newStatus !== oldStatus) {
+        ++changed;
+        n[i] = newStatus ? COLOR_ALIVE : COLOR_DEAD;
       }
+
+      hash += newStatus << i;
+      newStatus ? ++alive : ++dead;
     }
 
     if (generation > MAX_GENERATIONS) {
